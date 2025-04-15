@@ -5,62 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Управление финансами</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-// Глобальные переменные и данные
-  let currentRecordType = 'income';
-  let editingRow = null;
-  let currentChartPeriod = 'day';
-  let incomeChart = null;
-  let expensesChart = null;
-
-  const categories = {
-    income: ['Зарплата', 'Фриланс', 'Подарок', 'Инвестиции'],
-    expenses: ['Продукты', 'Транспорт', 'Аренда', 'Коммунальные', 'Развлечения']
-  };
-
-  function showTab(tab) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.getElementById(`${tab}-tab`).classList.add('active');
-    currentRecordType = tab;
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    showTab('income');
-    loadTestData();
-    updateFilters('income');
-    updateFilters('expenses');
-    initCharts();
-  });
-
-  function loadTestData() {
-    const testData = {
-      income: [
-        { date: '2023-01-01', amount: 50000, category: 'Зарплата', account: 'Карта', user: 'Андрей', comment: 'Январская зарплата' },
-        { date: '2023-01-15', amount: 20000, category: 'Фриланс', account: 'Карта', user: 'Андрей', comment: 'Проект X' }
-      ],
-      expenses: [
-        { date: '2023-01-05', amount: 15000, category: 'Продукты', account: 'Карта', user: 'Мария', comment: 'Продукты на неделю' },
-        { date: '2023-01-12', amount: 20000, category: 'Аренда', account: 'Карта', user: 'Мария', comment: 'Аренда квартиры' }
-      ]
-    };
-    testData.income.forEach(record => {
-      addTableRow('income', {
-        ...record,
-        week: getWeekNumber(record.date),
-        month: getMonthName(record.date)
-      });
-    });
-    testData.expenses.forEach(record => {
-      addTableRow('expenses', {
-        ...record,
-        week: getWeekNumber(record.date),
-        month: getMonthName(record.date)
-      });
-    });
-    updateTotal('income');
-    updateTotal('expenses');
-  }
-</script>
   <style>
     :root {
       --bg-color: #1a1a1a;
@@ -193,12 +137,27 @@
       margin-top: 10px;
       font-weight: bold;
     }
+
+    .chart-container {
+      width: 100%;
+      height: 300px;
+      position: relative;
+      margin: 20px 0;
+    }
+
+    .chart-period {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
   </style>
-<style>.chart-container{height:300px;margin:20px 0}</style>
 </head>
 <body>
   <!-- Панель темы и вкладки -->
-  <div class="theme-switcher">...</div>
+  <div class="theme-switcher">
+    <span>Тема:</span>
+    <button onclick="toggleTheme()">Светлая/Темная</button>
+  </div>
   <div class="tabs">
     <button onclick="showTab('income')">Доходы</button>
     <button onclick="showTab('expenses')">Расходы</button>
@@ -206,68 +165,78 @@
   </div>
 
   <!-- Вкладка Доходы -->
-<div class="tab-content" id="income-tab">
-  <div class="chart-container">
-    <canvas id="income-chart"></canvas>
+  <div class="tab-content" id="income-tab">
+    <div class="chart-period">
+      <button onclick="setChartPeriod('day')">По дням</button>
+      <button onclick="setChartPeriod('week')">По неделям</button>
+      <button onclick="setChartPeriod('month')">По месяцам</button>
+    </div>
+    <div class="chart-container">
+      <canvas id="income-chart"></canvas>
+    </div>
+    <div class="actions">
+      <button onclick="openForm('income')">+ Добавить</button>
+      <button onclick="deleteSelected('income')">Удалить</button>
+      <button onclick="editSelected('income')">Редактировать</button>
+      <input type="date" id="filter-start" onchange="filterTable('income')">
+      <input type="date" id="filter-end" onchange="filterTable('income')">
+      <select id="filter-week" onchange="filterTable('income')">
+        <option value="">Все недели</option>
+      </select>
+      <select id="filter-month" onchange="filterTable('income')">
+        <option value="">Все месяцы</option>
+      </select>
+    </div>
+    <table id="income-table">
+      <thead>
+        <tr>
+          <th><input type="checkbox" onclick="toggleAllCheckboxes('income')"></th>
+          <th>Дата</th><th>Неделя</th><th>Месяц</th><th>Сумма</th><th>Источник</th><th>Счет</th><th>Пользователь</th><th>Комментарий</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot>
+        <tr><td colspan="4">Итого:</td><td id="income-total">0</td><td colspan="4"></td></tr>
+      </tfoot>
+    </table>
   </div>
-  <div class="actions">
-    <button onclick="openForm('income')">+ Добавить</button>
-    <button onclick="deleteSelected('income')">Удалить</button>
-    <button onclick="editSelected('income')">Редактировать</button>
-    <input type="date" id="filter-start" onchange="filterTable('income')">
-    <input type="date" id="filter-end" onchange="filterTable('income')">
-    <select id="filter-week" onchange="filterTable('income')">
-      <option value="">Все недели</option>
-    </select>
-    <select id="filter-month" onchange="filterTable('income')">
-      <option value="">Все месяцы</option>
-    </select>
-  </div>
-  <table id="income-table">
-    <thead>
-      <tr>
-        <th><input type="checkbox" onclick="toggleAllCheckboxes('income')"></th>
-        <th>Дата</th><th>Неделя</th><th>Месяц</th><th>Сумма</th><th>Источник</th><th>Счет</th><th>Пользователь</th><th>Комментарий</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-    <tfoot>
-      <tr><td colspan="4">Итого:</td><td id="income-total">0</td><td colspan="4"></td></tr>
-    </tfoot>
-  </table>
-</div>
 
-<!-- Вкладка Расходы -->
-<div class="tab-content" id="expenses-tab">
-  <div class="chart-container">
-    <canvas id="expenses-chart"></canvas>
+  <!-- Вкладка Расходы -->
+  <div class="tab-content" id="expenses-tab">
+    <div class="chart-period">
+      <button onclick="setChartPeriod('day')">По дням</button>
+      <button onclick="setChartPeriod('week')">По неделям</button>
+      <button onclick="setChartPeriod('month')">По месяцам</button>
+    </div>
+    <div class="chart-container">
+      <canvas id="expenses-chart"></canvas>
+    </div>
+    <div class="actions">
+      <button onclick="openForm('expenses')">+ Добавить</button>
+      <button onclick="deleteSelected('expenses')">Удалить</button>
+      <button onclick="editSelected('expenses')">Редактировать</button>
+      <input type="date" id="expense-filter-start" onchange="filterTable('expenses')">
+      <input type="date" id="expense-filter-end" onchange="filterTable('expenses')">
+      <select id="expense-filter-week" onchange="filterTable('expenses')">
+        <option value="">Все недели</option>
+      </select>
+      <select id="expense-filter-month" onchange="filterTable('expenses')">
+        <option value="">Все месяцы</option>
+      </select>
+    </div>
+    <table id="expenses-table">
+      <thead>
+        <tr>
+          <th><input type="checkbox" onclick="toggleAllCheckboxes('expenses')"></th>
+          <th>Дата</th><th>Неделя</th><th>Месяц</th><th>Сумма</th><th>Статья расходов</th><th>Счет</th><th>Пользователь</th><th>Комментарий</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot>
+        <tr><td colspan="4">Итого:</td><td id="expenses-total">0</td><td colspan="4"></td></tr>
+      </tfoot>
+    </table>
   </div>
-  <div class="actions">
-    <button onclick="openForm('expenses')">+ Добавить</button>
-    <button onclick="deleteSelected('expenses')">Удалить</button>
-    <button onclick="editSelected('expenses')">Редактировать</button>
-    <input type="date" id="expense-filter-start" onchange="filterTable('expenses')">
-    <input type="date" id="expense-filter-end" onchange="filterTable('expenses')">
-    <select id="expense-filter-week" onchange="filterTable('expenses')">
-      <option value="">Все недели</option>
-    </select>
-    <select id="expense-filter-month" onchange="filterTable('expenses')">
-      <option value="">Все месяцы</option>
-    </select>
-  </div>
-  <table id="expenses-table">
-    <thead>
-      <tr>
-        <th><input type="checkbox" onclick="toggleAllCheckboxes('expenses')"></th>
-        <th>Дата</th><th>Неделя</th><th>Месяц</th><th>Сумма</th><th>Статья расходов</th><th>Счет</th><th>Пользователь</th><th>Комментарий</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-    <tfoot>
-      <tr><td colspan="4">Итого:</td><td id="expenses-total">0</td><td colspan="4"></td></tr>
-    </tfoot>
-  </table>
-</div>
 
   <!-- Вкладка Заявки -->
   <div class="tab-content" id="requests-tab">
@@ -313,40 +282,268 @@
     <button onclick="saveRequest()">Сохранить</button>
     <button onclick="closePopup()">Отмена</button>
   </div>
+
+  <!-- Popup для доходов и расходов -->
+  <div class="popup" id="form-popup">
+    <h3 id="popup-title">Добавить запись</h3>
+    <input type="date" id="record-date" required>
+    <input type="number" id="record-amount" placeholder="Сумма" required min="0" step="1">
+    <select id="record-category" required></select>
+    <select id="record-account" required>
+      <option value="Карта">Карта</option>
+      <option value="Наличные">Наличные</option>
+    </select>
+    <select id="record-user" required>
+      <option value="Андрей">Андрей</option>
+      <option value="Мария">Мария</option>
+    </select>
+    <textarea id="record-comment" placeholder="Комментарий"></textarea>
+    <div class="popup-buttons">
+      <button onclick="closeForm()">Отмена</button>
+      <button onclick="saveRecord()" style="background-color: var(--primary-color); color: white;">Сохранить</button>
+    </div>
+  </div>
+
   <div class="overlay" onclick="closePopup()"></div>
 
-<!-- Popup для доходов и расходов -->
-<div class="popup" id="form-popup">
-  <h3 id="popup-title">Добавить запись</h3>
-  <input type="date" id="record-date" required>
-  <input type="number" id="record-amount" placeholder="Сумма" required min="0" step="1">
-  <select id="record-category" required></select>
-  <select id="record-account" required>
-    <option value="Карта">Карта</option>
-    <option value="Наличные">Наличные</option>
-  </select>
-  <select id="record-user" required>
-    <option value="Андрей">Андрей</option>
-    <option value="Мария">Мария</option>
-  </select>
-  <textarea id="record-comment" placeholder="Комментарий"></textarea>
-  <div class="popup-buttons">
-    <button onclick="closeForm()">Отмена</button>
-    <button onclick="saveRecord()" style="background-color: var(--primary-color); color: white;">Сохранить</button>
-  </div>
-</div>
-
   <script>
-    // Вся твоя логика из <script> блока сохраняется полностью (включая графики, фильтры и т.п.)
-    // Ниже — дополнения для блока "Заявки"
+    // Глобальные переменные и данные
+    let currentRecordType = 'income';
+    let editingRow = null;
+    let currentChartPeriod = 'day';
+    let incomeChart = null;
+    let expensesChart = null;
+
+    const categories = {
+      income: ['Зарплата', 'Фриланс', 'Подарок', 'Инвестиции'],
+      expenses: ['Продукты', 'Транспорт', 'Аренда', 'Коммунальные', 'Развлечения']
+    };
 
     const requests = [];
 
+    function showTab(tab) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById(`${tab}-tab`).classList.add('active');
+      currentRecordType = tab;
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('light-theme');
+    }
+
+    function getWeekNumber(dateStr) {
+      const date = new Date(dateStr);
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+      const week1 = new Date(date.getFullYear(), 0, 4);
+      return 1 + Math.round(((date - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    }
+
+    function getMonthName(dateStr) {
+      const date = new Date(dateStr);
+      const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+      return months[date.getMonth()];
+    }
+
+    function addTableRow(type, record) {
+      const tableId = `${type}-table`;
+      const tbody = document.querySelector(`#${tableId} tbody`);
+      const row = tbody.insertRow();
+      row.insertCell().innerHTML = '<input type="checkbox">';
+      row.insertCell().textContent = record.date;
+      row.insertCell().textContent = record.week;
+      row.insertCell().textContent = record.month;
+      row.insertCell().textContent = record.amount;
+      row.insertCell().textContent = record.category;
+      row.insertCell().textContent = record.account;
+      row.insertCell().textContent = record.user;
+      row.insertCell().textContent = record.comment || '';
+    }
+
+    function updateTotal(type) {
+      const tableId = `${type}-table`;
+      const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+      let total = 0;
+      rows.forEach(row => {
+        if (row.style.display !== 'none') {
+          const amount = parseInt(row.cells[4].textContent);
+          if (!isNaN(amount)) total += amount;
+        }
+      });
+      document.getElementById(`${type}-total`).textContent = total;
+    }
+
+    function updateChart(type) {
+      const tableId = `${type}-table`;
+      const chartId = `${type}-chart`;
+      const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+      const data = {};
+      
+      rows.forEach(row => {
+        if (row.style.display === 'none') return;
+        
+        const date = row.cells[1].textContent;
+        const amount = parseInt(row.cells[4].textContent);
+        let periodKey;
+        
+        if (currentChartPeriod === 'day') {
+          periodKey = date;
+        } else if (currentChartPeriod === 'week') {
+          periodKey = `Неделя ${row.cells[2].textContent}`;
+        } else {
+          periodKey = `Месяц ${row.cells[3].textContent}`;
+        }
+        
+        if (!data[periodKey]) data[periodKey] = 0;
+        data[periodKey] += amount;
+      });
+
+      const labels = Object.keys(data).sort();
+      const values = labels.map(label => data[label]);
+      const ctx = document.getElementById(chartId).getContext('2d');
+      
+      // Удаляем старый график, если он существует
+      if (type === 'income' && incomeChart) incomeChart.destroy();
+      if (type === 'expenses' && expensesChart) expensesChart.destroy();
+      
+      // Создаем новый график
+      const newChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: type === 'income' ? 'Доходы' : 'Расходы',
+            data: values,
+            backgroundColor: type === 'income' ? 'rgba(75, 192, 192, 0.6)' : 'rgba(255, 99, 132, 0.6)',
+            borderColor: type === 'income' ? 'rgba(75, 192, 192, 1)' : 'rgba(255, 99, 132, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Сумма' }
+            },
+            x: { 
+              title: { display: true, text: 'Период' }
+            }
+          }
+        }
+      });
+      
+      // Сохраняем ссылку на график
+      if (type === 'income') incomeChart = newChart;
+      if (type === 'expenses') expensesChart = newChart;
+    }
+
+    function setChartPeriod(period) {
+      currentChartPeriod = period;
+      updateChart('income');
+      updateChart('expenses');
+    }
+
+    function loadTestData() {
+      const testData = {
+        income: [
+          { date: '2023-01-01', amount: 50000, category: 'Зарплата', account: 'Карта', user: 'Андрей', comment: 'Январская зарплата' },
+          { date: '2023-01-15', amount: 20000, category: 'Фриланс', account: 'Карта', user: 'Андрей', comment: 'Проект X' }
+        ],
+        expenses: [
+          { date: '2023-01-05', amount: 15000, category: 'Продукты', account: 'Карта', user: 'Мария', comment: 'Продукты на неделю' },
+          { date: '2023-01-12', amount: 20000, category: 'Аренда', account: 'Карта', user: 'Мария', comment: 'Аренда квартиры' }
+        ]
+      };
+
+      testData.income.forEach(record => {
+        addTableRow('income', {
+          ...record,
+          week: getWeekNumber(record.date),
+          month: getMonthName(record.date)
+        });
+      });
+
+      testData.expenses.forEach(record => {
+        addTableRow('expenses', {
+          ...record,
+          week: getWeekNumber(record.date),
+          month: getMonthName(record.date)
+        });
+      });
+
+      updateTotal('income');
+      updateTotal('expenses');
+      updateChart('income');
+      updateChart('expenses');
+    }
+
+    function openForm(type) {
+      currentRecordType = type;
+      editingRow = null;
+      const popup = document.getElementById('form-popup');
+      const title = document.getElementById('popup-title');
+      const categorySelect = document.getElementById('record-category');
+      
+      categorySelect.innerHTML = '';
+      categories[type].forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        categorySelect.appendChild(option);
+      });
+      
+      title.textContent = type === 'income' ? 'Добавить доход' : 'Добавить расход';
+      document.getElementById('record-date').valueAsDate = new Date();
+      document.getElementById('record-amount').value = '';
+      document.getElementById('record-comment').value = '';
+      popup.style.display = 'block';
+      document.querySelector('.overlay').style.display = 'block';
+    }
+
+    function closeForm() {
+      document.getElementById('form-popup').style.display = 'none';
+      document.querySelector('.overlay').style.display = 'none';
+    }
+
+    function saveRecord() {
+      const date = document.getElementById('record-date').value;
+      const amount = document.getElementById('record-amount').value;
+      const category = document.getElementById('record-category').value;
+      const account = document.getElementById('record-account').value;
+      const user = document.getElementById('record-user').value;
+      const comment = document.getElementById('record-comment').value;
+      
+      if (!date || !amount || isNaN(parseInt(amount)) || parseInt(amount) <= 0) {
+        alert('Пожалуйста, заполните все обязательные поля корректно!');
+        return;
+      }
+      
+      const record = {
+        date,
+        week: getWeekNumber(date),
+        month: getMonthName(date),
+        amount: parseInt(amount),
+        category,
+        account,
+        user,
+        comment
+      };
+      
+      addTableRow(currentRecordType, record);
+      updateTotal(currentRecordType);
+      updateChart(currentRecordType);
+      closeForm();
+    }
+
+    // Функции для работы с заявками
     function openRequestForm() {
       document.getElementById('request-popup').style.display = 'block';
       document.querySelector('.overlay').style.display = 'block';
       document.getElementById('req-date').valueAsDate = new Date();
       document.getElementById('req-plan-date').valueAsDate = new Date();
+      
       const categorySelect = document.getElementById('req-category');
       categorySelect.innerHTML = '';
       categories.expenses.forEach(c => {
@@ -359,6 +556,7 @@
 
     function closePopup() {
       document.getElementById('request-popup').style.display = 'none';
+      document.getElementById('form-popup').style.display = 'none';
       document.querySelector('.overlay').style.display = 'none';
     }
 
@@ -372,6 +570,7 @@
         purpose: document.getElementById('req-purpose').value,
         status: document.getElementById('req-status').value
       };
+      
       requests.push(request);
       renderRequests();
       closePopup();
@@ -381,9 +580,11 @@
       const tbody = document.querySelector('#requests-table tbody');
       tbody.innerHTML = '';
       const statusCount = {};
+      
       requests.forEach((r, i) => {
         if (!statusCount[r.status]) statusCount[r.status] = 0;
         statusCount[r.status]++;
+        
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${r.date}</td>
@@ -400,6 +601,7 @@
           </td>`;
         tbody.appendChild(tr);
       });
+      
       const summary = Object.entries(statusCount).map(([k,v]) => `${k}: ${v}`).join(' | ');
       document.getElementById('status-summary').textContent = `Всего: ${requests.length} | ${summary}`;
     }
@@ -417,6 +619,7 @@
     function createExpenseFromRequest(index) {
       const r = requests[index];
       if (r.status !== 'Одобрено') return alert('Сначала одобрите заявку');
+      
       const record = {
         date: r.planDate,
         week: getWeekNumber(r.planDate),
@@ -427,167 +630,44 @@
         user: r.user,
         comment: r.purpose
       };
+      
       addTableRow('expenses', record);
       updateTotal('expenses');
-      updateFilters('expenses');
       updateChart('expenses');
     }
+
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', () => {
+      showTab('income');
+      loadTestData();
+      updateFilters('income');
+      updateFilters('expenses');
+    });
+
+    // Заглушки для отсутствующих функций
+    function updateFilters(type) {
+      // Реализуйте эту функцию по необходимости
+    }
+
+    function filterTable(type) {
+      // Реализуйте фильтрацию таблицы
+      updateTotal(type);
+      updateChart(type);
+    }
+
+    function deleteSelected(type) {
+      // Реализуйте удаление выбранных записей
+      updateTotal(type);
+      updateChart(type);
+    }
+
+    function editSelected(type) {
+      // Реализуйте редактирование выбранной записи
+    }
+
+    function toggleAllCheckboxes(type) {
+      // Реализуйте выделение всех чекбоксов
+    }
   </script>
-<script>
-function getWeekNumber(dateStr) {
-  const date = new Date(dateStr);
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
-  const week1 = new Date(date.getFullYear(), 0, 4);
-  return 1 + Math.round(((date - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-}
-
-function getMonthName(dateStr) {
-  const date = new Date(dateStr);
-  return date.getMonth() + 1;
-}
-
-function addTableRow(type, record) {
-  const tableId = `${type}-table`;
-  const tbody = document.querySelector(`#${tableId} tbody`);
-  const row = tbody.insertRow();
-  row.insertCell().innerHTML = '<input type="checkbox">';
-  row.insertCell().textContent = record.date;
-  row.insertCell().textContent = record.week;
-  row.insertCell().textContent = record.month;
-  row.insertCell().textContent = record.amount;
-  row.insertCell().textContent = record.category;
-  row.insertCell().textContent = record.account;
-  row.insertCell().textContent = record.user;
-  row.insertCell().textContent = record.comment || '';
-}
-
-function updateTotal(type) {
-  const tableId = `${type}-table`;
-  const rows = document.querySelectorAll(`#${tableId} tbody tr`);
-  let total = 0;
-  rows.forEach(row => {
-    if (row.style.display !== 'none') {
-      const amount = parseInt(row.cells[4].textContent);
-      if (!isNaN(amount)) total += amount;
-    }
-  });
-  document.getElementById(`${type}-total`).textContent = total;
-}
-
-function updateChart(type) {
-  const tableId = `${type}-table`;
-  const chartId = `${type}-chart`;
-  const rows = document.querySelectorAll(`#${tableId} tbody tr`);
-  const data = {};
-  rows.forEach(row => {
-    if (row.style.display === 'none') return;
-    let periodKey;
-    const date = row.cells[1].textContent;
-    const amount = parseInt(row.cells[4].textContent);
-    if (currentChartPeriod === 'day') {
-      periodKey = date;
-    } else if (currentChartPeriod === 'week') {
-      periodKey = `Неделя ${row.cells[2].textContent}`;
-    } else {
-      periodKey = `Месяц ${row.cells[3].textContent}`;
-    }
-    if (!data[periodKey]) {
-      data[periodKey] = 0;
-    }
-    data[periodKey] += amount;
-  });
-  const labels = Object.keys(data).sort();
-  const values = labels.map(label => data[label]);
-  const ctx = document.getElementById(chartId).getContext('2d');
-  if (type === 'income' && incomeChart) incomeChart.destroy();
-  if (type === 'expenses' && expensesChart) expensesChart.destroy();
-  const newChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: type === 'income' ? 'Доходы' : 'Расходы',
-        data: values,
-        backgroundColor: type === 'income' ? 'rgba(75, 192, 192, 0.6)' : 'rgba(255, 99, 132, 0.6)',
-        borderColor: type === 'income' ? 'rgba(75, 192, 192, 1)' : 'rgba(255, 99, 132, 1)',
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          title: { display: true, text: 'Сумма' }
-        },
-        x: { title: { display: true, text: 'Период' } }
-      }
-    }
-  });
-  if (type === 'income') incomeChart = newChart;
-  if (type === 'expenses') expensesChart = newChart;
-}
-
-function initCharts() {
-  updateChart('income');
-  updateChart('expenses');
-}
-function openForm(type) {
-  currentRecordType = type;
-  editingRow = null;
-  const popup = document.getElementById('form-popup');
-  const title = document.getElementById('popup-title');
-  const categorySelect = document.getElementById('record-category');
-  categorySelect.innerHTML = '';
-  categories[type].forEach(category => {
-    const option = document.createElement('option');
-    option.value = category;
-    option.textContent = category;
-    categorySelect.appendChild(option);
-  });
-  title.textContent = type === 'income' ? 'Добавить доход' : 'Добавить расход';
-  document.getElementById('record-date').valueAsDate = new Date();
-  document.getElementById('record-amount').value = '';
-  document.getElementById('record-comment').value = '';
-  popup.style.display = 'block';
-  document.querySelector('.overlay').style.display = 'block';
-}
-
-function closeForm() {
-  document.getElementById('form-popup').style.display = 'none';
-  document.querySelector('.overlay').style.display = 'none';
-}
-
-function saveRecord() {
-  const date = document.getElementById('record-date').value;
-  const amount = document.getElementById('record-amount').value;
-  const category = document.getElementById('record-category').value;
-  const account = document.getElementById('record-account').value;
-  const user = document.getElementById('record-user').value;
-  const comment = document.getElementById('record-comment').value;
-  if (!date || !amount || isNaN(parseInt(amount)) || parseInt(amount) <= 0) {
-    alert('Пожалуйста, заполните все обязательные поля корректно!');
-    return;
-  }
-  const amountValue = parseInt(amount);
-  const record = {
-    date,
-    week: getWeekNumber(date),
-    month: getMonthName(date),
-    amount: amountValue,
-    category,
-    account,
-    user,
-    comment
-  };
-  addTableRow(currentRecordType, record);
-  updateTotal(currentRecordType);
-  updateFilters(currentRecordType);
-  updateChart(currentRecordType);
-  closeForm();
-}
-</script>
 </body>
 </html>
