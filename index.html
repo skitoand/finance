@@ -6,8 +6,9 @@
   <title>Управление финансами</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // Глобальные переменные и данные
+// Глобальные переменные и данные
   let currentRecordType = 'income';
   let editingRow = null;
   let currentChartPeriod = 'day';
@@ -195,6 +196,7 @@
       font-weight: bold;
     }
   </style>
+<style>.chart-container{height:300px;margin:20px 0}</style>
 </head>
 <body>
   <!-- Панель темы и вкладки -->
@@ -207,6 +209,9 @@
 
   <!-- Вкладка Доходы -->
 <div class="tab-content" id="income-tab">
+  <div class="chart-container">
+    <canvas id="income-chart"></canvas>
+  </div>
   <div class="actions">
     <button onclick="openForm('income')">+ Добавить</button>
     <button onclick="deleteSelected('income')">Удалить</button>
@@ -236,6 +241,9 @@
 
 <!-- Вкладка Расходы -->
 <div class="tab-content" id="expenses-tab">
+  <div class="chart-container">
+    <canvas id="expenses-chart"></canvas>
+  </div>
   <div class="actions">
     <button onclick="openForm('expenses')">+ Добавить</button>
     <button onclick="deleteSelected('expenses')">Удалить</button>
@@ -406,5 +414,107 @@
       updateChart('expenses');
     }
   </script>
+<script>
+function getWeekNumber(dateStr) {
+  const date = new Date(dateStr);
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+  const week1 = new Date(date.getFullYear(), 0, 4);
+  return 1 + Math.round(((date - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+}
+
+function getMonthName(dateStr) {
+  const date = new Date(dateStr);
+  return date.getMonth() + 1;
+}
+
+function addTableRow(type, record) {
+  const tableId = `${type}-table`;
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  const row = tbody.insertRow();
+  row.insertCell().innerHTML = '<input type="checkbox">';
+  row.insertCell().textContent = record.date;
+  row.insertCell().textContent = record.week;
+  row.insertCell().textContent = record.month;
+  row.insertCell().textContent = record.amount;
+  row.insertCell().textContent = record.category;
+  row.insertCell().textContent = record.account;
+  row.insertCell().textContent = record.user;
+  row.insertCell().textContent = record.comment || '';
+}
+
+function updateTotal(type) {
+  const tableId = `${type}-table`;
+  const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+  let total = 0;
+  rows.forEach(row => {
+    if (row.style.display !== 'none') {
+      const amount = parseInt(row.cells[4].textContent);
+      if (!isNaN(amount)) total += amount;
+    }
+  });
+  document.getElementById(`${type}-total`).textContent = total;
+}
+
+function updateChart(type) {
+  const tableId = `${type}-table`;
+  const chartId = `${type}-chart`;
+  const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+  const data = {};
+  rows.forEach(row => {
+    if (row.style.display === 'none') return;
+    let periodKey;
+    const date = row.cells[1].textContent;
+    const amount = parseInt(row.cells[4].textContent);
+    if (currentChartPeriod === 'day') {
+      periodKey = date;
+    } else if (currentChartPeriod === 'week') {
+      periodKey = `Неделя ${row.cells[2].textContent}`;
+    } else {
+      periodKey = `Месяц ${row.cells[3].textContent}`;
+    }
+    if (!data[periodKey]) {
+      data[periodKey] = 0;
+    }
+    data[periodKey] += amount;
+  });
+  const labels = Object.keys(data).sort();
+  const values = labels.map(label => data[label]);
+  const ctx = document.getElementById(chartId).getContext('2d');
+  if (type === 'income' && incomeChart) incomeChart.destroy();
+  if (type === 'expenses' && expensesChart) expensesChart.destroy();
+  const newChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: type === 'income' ? 'Доходы' : 'Расходы',
+        data: values,
+        backgroundColor: type === 'income' ? 'rgba(75, 192, 192, 0.6)' : 'rgba(255, 99, 132, 0.6)',
+        borderColor: type === 'income' ? 'rgba(75, 192, 192, 1)' : 'rgba(255, 99, 132, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Сумма' }
+        },
+        x: { title: { display: true, text: 'Период' } }
+      }
+    }
+  });
+  if (type === 'income') incomeChart = newChart;
+  if (type === 'expenses') expensesChart = newChart;
+}
+
+function initCharts() {
+  updateChart('income');
+  updateChart('expenses');
+}
+</script>
 </body>
 </html>
