@@ -5,15 +5,62 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Управление финансами</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+  // Глобальные переменные и данные
+  let currentRecordType = 'income';
+  let editingRow = null;
+  let currentChartPeriod = 'day';
+  let incomeChart = null;
+  let expensesChart = null;
+
+  const categories = {
+    income: ['Зарплата', 'Фриланс', 'Подарок', 'Инвестиции'],
+    expenses: ['Продукты', 'Транспорт', 'Аренда', 'Коммунальные', 'Развлечения']
+  };
+
   function showTab(tab) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.getElementById(`${tab}-tab`).classList.add('active');
+    currentRecordType = tab;
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     showTab('income');
+    loadTestData();
+    updateFilters('income');
+    updateFilters('expenses');
+    initCharts();
   });
+
+  function loadTestData() {
+    const testData = {
+      income: [
+        { date: '2023-01-01', amount: 50000, category: 'Зарплата', account: 'Карта', user: 'Андрей', comment: 'Январская зарплата' },
+        { date: '2023-01-15', amount: 20000, category: 'Фриланс', account: 'Карта', user: 'Андрей', comment: 'Проект X' }
+      ],
+      expenses: [
+        { date: '2023-01-05', amount: 15000, category: 'Продукты', account: 'Карта', user: 'Мария', comment: 'Продукты на неделю' },
+        { date: '2023-01-12', amount: 20000, category: 'Аренда', account: 'Карта', user: 'Мария', comment: 'Аренда квартиры' }
+      ]
+    };
+    testData.income.forEach(record => {
+      addTableRow('income', {
+        ...record,
+        week: getWeekNumber(record.date),
+        month: getMonthName(record.date)
+      });
+    });
+    testData.expenses.forEach(record => {
+      addTableRow('expenses', {
+        ...record,
+        week: getWeekNumber(record.date),
+        month: getMonthName(record.date)
+      });
+    });
+    updateTotal('income');
+    updateTotal('expenses');
+  }
 </script>
   <style>
     :root {
