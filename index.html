@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Управление финансами</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // Глобальные переменные и данные
   let currentRecordType = 'income';
@@ -317,6 +315,27 @@
   </div>
   <div class="overlay" onclick="closePopup()"></div>
 
+<!-- Popup для доходов и расходов -->
+<div class="popup" id="form-popup">
+  <h3 id="popup-title">Добавить запись</h3>
+  <input type="date" id="record-date" required>
+  <input type="number" id="record-amount" placeholder="Сумма" required min="0" step="1">
+  <select id="record-category" required></select>
+  <select id="record-account" required>
+    <option value="Карта">Карта</option>
+    <option value="Наличные">Наличные</option>
+  </select>
+  <select id="record-user" required>
+    <option value="Андрей">Андрей</option>
+    <option value="Мария">Мария</option>
+  </select>
+  <textarea id="record-comment" placeholder="Комментарий"></textarea>
+  <div class="popup-buttons">
+    <button onclick="closeForm()">Отмена</button>
+    <button onclick="saveRecord()" style="background-color: var(--primary-color); color: white;">Сохранить</button>
+  </div>
+</div>
+
   <script>
     // Вся твоя логика из <script> блока сохраняется полностью (включая графики, фильтры и т.п.)
     // Ниже — дополнения для блока "Заявки"
@@ -514,6 +533,60 @@ function updateChart(type) {
 function initCharts() {
   updateChart('income');
   updateChart('expenses');
+}
+function openForm(type) {
+  currentRecordType = type;
+  editingRow = null;
+  const popup = document.getElementById('form-popup');
+  const title = document.getElementById('popup-title');
+  const categorySelect = document.getElementById('record-category');
+  categorySelect.innerHTML = '';
+  categories[type].forEach(category => {
+    const option = document.createElement('option');
+    option.value = category;
+    option.textContent = category;
+    categorySelect.appendChild(option);
+  });
+  title.textContent = type === 'income' ? 'Добавить доход' : 'Добавить расход';
+  document.getElementById('record-date').valueAsDate = new Date();
+  document.getElementById('record-amount').value = '';
+  document.getElementById('record-comment').value = '';
+  popup.style.display = 'block';
+  document.querySelector('.overlay').style.display = 'block';
+}
+
+function closeForm() {
+  document.getElementById('form-popup').style.display = 'none';
+  document.querySelector('.overlay').style.display = 'none';
+}
+
+function saveRecord() {
+  const date = document.getElementById('record-date').value;
+  const amount = document.getElementById('record-amount').value;
+  const category = document.getElementById('record-category').value;
+  const account = document.getElementById('record-account').value;
+  const user = document.getElementById('record-user').value;
+  const comment = document.getElementById('record-comment').value;
+  if (!date || !amount || isNaN(parseInt(amount)) || parseInt(amount) <= 0) {
+    alert('Пожалуйста, заполните все обязательные поля корректно!');
+    return;
+  }
+  const amountValue = parseInt(amount);
+  const record = {
+    date,
+    week: getWeekNumber(date),
+    month: getMonthName(date),
+    amount: amountValue,
+    category,
+    account,
+    user,
+    comment
+  };
+  addTableRow(currentRecordType, record);
+  updateTotal(currentRecordType);
+  updateFilters(currentRecordType);
+  updateChart(currentRecordType);
+  closeForm();
 }
 </script>
 </body>
